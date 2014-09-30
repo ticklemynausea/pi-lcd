@@ -11,7 +11,7 @@ import subprocess
 GPIO_Common.init()
 
 #
-# YOU SHOULD refer to the switches by name
+# YOU SHOULD refer to the switches by name instead of GPIO number
 #
 class Switch:
   A = 4
