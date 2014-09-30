@@ -57,7 +57,8 @@ class Switch(object):
     
   def callback(self, event, delta = None):
     try:
-      self.callbacks[event](event, delta)
+      if self.callbacks[event] is not None:
+        self.callbacks[event](event, delta)
 
     except KeyError:
       assert(false)

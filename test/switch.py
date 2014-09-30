@@ -5,23 +5,66 @@ from time import sleep
 import subprocess
 
 
-# This callback can be used
-
-
-subprocess.call("pwd", shell=True)
-
+#
+# YOU MUST Initialize GPIO in BCM mode
+#
 GPIO_Common.init()
+
+#
+# YOU SHOULD refer to the switches by name
+#
+class Switch:
+  A = 4
+  B = 22
+  C = 27
+  D = 17
+
+#
+# YOU CAN declare the callback function explicily
+#
+def callback_switch_C_held_short(event, delta):
+  print("Button C was held for a short duration")
+
+def callback_switch_D_released(event, delta):
+  print("Button D was released")
+
+def callback_switch_B_released(event, delta):
+  print("Button B was released after %s ms" % delta)  
+#
+# YOU MUST Initialize a SwitchController object
+# YOU CAN Initialize default actions passing an object to the constructor
+#
 switch_controller = SwitchController({ 
-  4 : {
-    Action.switch_pressed : lambda event, delta: print("eheh")
+  # YOU CAN assign an anonymous function as a callback for a specific event
+  Switch.A : {
+    Action.switch_all : lambda event, delta: print("[A] button triggered an event"),
+    Action.switch_pressed : lambda event, delta: print("[A] button was pressed"),
+    Action.switch_held_short : lambda event, delta: print("[A] button was held for a short time"),
+    Action.switch_held_long : lambda event, delta: print("[A] button was held for a long time"),
+    Action.switch_released : lambda event, delta: print("[A] button was released after %s ms!" % delta)
   },
-  17 : None,
-  22 : None,
-  27 : None
+
+  Switch.B : {
+    Action.switch_held_short : lambda event, delta: print("HELD SHORT C")
+  },
+
+  # YOU MUST assign a callback to an event on a button after declaring it
+  Switch.C : {
+    Action.switch_pressed : callback_switch_C_held_short
+  },
+
+  Switch.D : {
+    Action.switch_released : callback_switch_D_released
+  }
+  # YOU CAN assign a GPIO BCM number for every pin
+  # Switch.E : None
 })
 
-switch_controller.add_callback(22, Action.switch_held_short, lambda event, delta: print("omg! Held GPIO switch #22 for a little while"))
-switch_controller.add_callback(27, Action.switch_released, lambda event, delta : print("LOL released switch 27 after %s ms!" % delta))
+# YOU CAN override your previous definitions
+switch_controller.add_callback(Switch.A, Action.switch_held_short, lambda event, delta: print("omg! Held GPIO switch #22 for a little while"))
+
+# YOU CAN define new callbacks
+switch_controller.add_callback(Switch.B, Action.switch_released, callback_switch_B_released)
 
 while True:
     switch_controller.tick()
