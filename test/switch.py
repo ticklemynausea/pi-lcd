@@ -32,7 +32,7 @@ def callback_switch_B_released(event, delta):
   print("Button B was released after %s ms" % delta)  
 #
 # YOU MUST Initialize a SwitchController object
-# YOU CAN Initialize default actions passing an object to the constructor
+# YOU CAN Initialize default actions by passing a dictionary to the constructor like this
 #
 switch_controller = SwitchController({ 
   # YOU CAN assign an anonymous function as a callback for a specific event
