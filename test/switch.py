@@ -66,6 +66,7 @@ switch_controller.add_callback(Switch.A, Action.switch_held_short, lambda event,
 # YOU CAN define new callbacks
 switch_controller.add_callback(Switch.B, Action.switch_released, callback_switch_B_released)
 
+# YOU MUST call the tick method in the program's main loop
 while True:
     switch_controller.tick()
     sleep(tick_delay)
