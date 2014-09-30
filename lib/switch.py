@@ -5,11 +5,7 @@ import os
 import code
 from lib.settings import held_short_duration, held_long_duration
 from datetime import datetime
-
-
-def timestamp_ms():
-  import time as time_
-  return int(round(time_.time() * 1000))
+from lib.util_common import timestamp_ms
     
 class Action(object):
   switch_all = "SWITCH_ALL"
@@ -68,7 +64,7 @@ class Switch(object):
 
   def tick(self):
     
-    #
+    # 
     self.current_input = GPIO.input(self.GPIO_num)
 
     # switch was pressed
@@ -110,13 +106,11 @@ class SwitchController(object):
   def add_callback(self, GPIO_num, event, callback = None):
     self.GPIO_switches[GPIO_num].add_callback(event, callback)
 
-  def routine(self):
-    for GPIO_num, Switch in self.GPIO_switches.items():
-      Switch.tick()
 
   def tick(self):
     try:
-      self.routine()
+      for GPIO_num, Switch in self.GPIO_switches.items():
+        Switch.tick()
 
     except KeyboardInterrupt:
       GPIO.cleanup()

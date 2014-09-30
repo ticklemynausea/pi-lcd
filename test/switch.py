@@ -2,8 +2,6 @@ from lib.gpio_common import GPIO_Common
 from lib.switch import SwitchController, Action
 from lib.settings import tick_delay
 from time import sleep
-import subprocess
-
 
 #
 # YOU MUST Initialize GPIO in BCM mode
