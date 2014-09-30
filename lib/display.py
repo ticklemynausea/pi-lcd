@@ -1,18 +1,13 @@
-# coding: utf8
-#
-# Based on
-# HD44780 LCD Test Script for
-# Raspberry Pi
-#
+
+# Based on HD44780 LCD Test Script for the Raspberry Pi
 # Author : Matt Hawkins
-#        : Mário Carneiro
-#
 # Site   : http://www.raspberrypi-spy.co.uk
-#        : https://nausea.io
-#
 # Date   : 26/07/2012
-#        : 16/09/2014
-#
+
+ 
+import RPi.GPIO as GPIO
+from lib.util_common import timestamp_ms
+import time
  
 # The wiring for the LCD is as follows:
 # 1 : GND
@@ -31,164 +26,181 @@
 # 14: Data Bit 7
 # 15: LCD Backlight +5V**
 # 16: LCD Backlight GND
+
+class DisplayController(object):
  
-import RPi.GPIO as GPIO
-import time
- 
-# Define GPIO to LCD mapping
-LCD_RS = 7
-LCD_E  = 8
-LCD_D4 = 25
-LCD_D5 = 24
-LCD_D6 = 23
-LCD_D7 = 18
- 
-# Define some device constants
-LCD_WIDTH = 16    # Maximum characters per line
-LCD_CHR = True
-LCD_CMD = False
- 
-LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
-LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line 
- 
-# Timing constants
-E_PULSE = 0.00005
-E_DELAY = 0.00005
+  # Define GPIO to LCD mapping
+  LCD_RS = 7
+  LCD_E  = 8
+  LCD_D4 = 25
+  LCD_D5 = 24
+  LCD_D6 = 23
+  LCD_D7 = 18
+   
+  # Define some device constants
+  LCD_WIDTH = 16    # Maximum characters per line
+  LCD_CHR = True
+  LCD_CMD = False
+   
+  LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+  LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line 
+   
+  # Timing constants
+  E_PULSE = 0.00005
+  E_DELAY = 0.00005
 
-# counters
-counter = [0, 0, 0, 0]
 
-def init():
-  # Main program block
- 
-  GPIO.setmode(GPIO.BCM)       # Use BCM GPIO numbers
-  GPIO.setup(LCD_E, GPIO.OUT)  # E
-  GPIO.setup(LCD_RS, GPIO.OUT) # RS
-  GPIO.setup(LCD_D4, GPIO.OUT) # DB4
-  GPIO.setup(LCD_D5, GPIO.OUT) # DB5
-  GPIO.setup(LCD_D6, GPIO.OUT) # DB6
-  GPIO.setup(LCD_D7, GPIO.OUT) # DB7
-
-  # Initialise display
-  lcd_init()
-
-# Send some test
-def text(line, text):
-
-  assert(line in [1,2] and len(text) <= 16)
-
-  if (line == 1):
-    lcd_byte(LCD_LINE_1, LCD_CMD)
-
-  elif (line == 2):
-    lcd_byte(LCD_LINE_2, LCD_CMD)
-
-  lcd_string(text)
-
-def scroll(line, text, increment = 1):
-  global counter
+  def __init__(self, callback, wait_time):
   
-  text = " " * 16 + text
 
-  if (line == 1):
-    lcd_byte(LCD_LINE_1, LCD_CMD)
-    i = 0
+    self.callback = callback
+    self.wait_time = wait_time
+    self.waiting_since = timestamp_ms()
 
-  elif (line == 2):
-    lcd_byte(LCD_LINE_2, LCD_CMD)
-    i = 1
- 
-  text_slice = text[counter[i]:counter[i]+16]
-  lcd_string(text_slice)
+    self.animation_status = {
+      DisplayController.LCD_LINE_1 : [0, 0],
+      DisplayController.LCD_LINE_2 : [0, 0]
+     }
+    
+    GPIO.setmode(GPIO.BCM) # Use BCM GPIO numbers
+    GPIO.setup(DisplayController.LCD_E, GPIO.OUT)  # E
+    GPIO.setup(DisplayController.LCD_RS, GPIO.OUT) # RS
+    GPIO.setup(DisplayController.LCD_D4, GPIO.OUT) # DB4
+    GPIO.setup(DisplayController.LCD_D5, GPIO.OUT) # DB5
+    GPIO.setup(DisplayController.LCD_D6, GPIO.OUT) # DB6
+    GPIO.setup(DisplayController.LCD_D7, GPIO.OUT) # DB7
 
-  counter[i] = counter[i] + increment
-  if counter[i] >= len(text):
-    counter[i] = 0
+    # Initialise display
+    self.lcd_init()
 
-def blink(line, text):
-  global counter
+  def set_callback(self, callback):
+    self.callback = callback
+    
+  def set_wait_time(self, wait_time):
+    self.wait_time = wait_time
 
-  if (line == 1):
-    lcd_byte(LCD_LINE_1, LCD_CMD)
-    i = 2
+  # Send some test
+  def text(self, line, text):
 
-  elif (line == 2):
-    lcd_byte(LCD_LINE_2, LCD_CMD)
-    i = 3
- 
-  if (counter[i] % 2 > 0):
-    text = " " * 16;
+    assert(line in [DisplayController.LCD_LINE_1, DisplayController.LCD_LINE_2])
 
-  lcd_string(text)
+    self.lcd_byte(line, DisplayController.LCD_CMD)
 
-  counter[i] = counter[i] + 1
+    self.lcd_string(text)
 
-def lcd_init():
-  # Initialise display
-  lcd_byte(0x33,LCD_CMD)
-  lcd_byte(0x32,LCD_CMD)
-  lcd_byte(0x28,LCD_CMD)
-  lcd_byte(0x0C,LCD_CMD)
-  lcd_byte(0x06,LCD_CMD)
-  lcd_byte(0x01,LCD_CMD)  
- 
-def lcd_string(message):
-  # Send string to display
- 
-  message = message.ljust(LCD_WIDTH," ")  
- 
-  for i in range(LCD_WIDTH):
-    lcd_byte(ord(message[i]),LCD_CHR)
- 
-def lcd_byte(bits, mode):
-  # Send byte to data pins
-  # bits = data
-  # mode = True  for character
-  #        False for command
- 
-  GPIO.output(LCD_RS, mode) # RS
- 
-  # High bits
-  GPIO.output(LCD_D4, False)
-  GPIO.output(LCD_D5, False)
-  GPIO.output(LCD_D6, False)
-  GPIO.output(LCD_D7, False)
-  if bits&0x10==0x10:
-    GPIO.output(LCD_D4, True)
-  if bits&0x20==0x20:
-    GPIO.output(LCD_D5, True)
-  if bits&0x40==0x40:
-    GPIO.output(LCD_D6, True)
-  if bits&0x80==0x80:
-    GPIO.output(LCD_D7, True)
- 
-  # Toggle 'Enable' pin
-  time.sleep(E_DELAY)
-  GPIO.output(LCD_E, True)
-  time.sleep(E_PULSE)
-  GPIO.output(LCD_E, False)
-  time.sleep(E_DELAY)      
- 
-  # Low bits
-  GPIO.output(LCD_D4, False)
-  GPIO.output(LCD_D5, False)
-  GPIO.output(LCD_D6, False)
-  GPIO.output(LCD_D7, False)
-  if bits&0x01==0x01:
-    GPIO.output(LCD_D4, True)
-  if bits&0x02==0x02:
-    GPIO.output(LCD_D5, True)
-  if bits&0x04==0x04:
-    GPIO.output(LCD_D6, True)
-  if bits&0x08==0x08:
-    GPIO.output(LCD_D7, True)
- 
-  # Toggle 'Enable' pin
-  time.sleep(E_DELAY)
-  GPIO.output(LCD_E, True)
-  time.sleep(E_PULSE)
-  GPIO.output(LCD_E, False)
-  time.sleep(E_DELAY)   
+  # scroll line on the screen
+  def scroll(self, line, text, increment = 1):
 
-def lcd_cleanup():
-  GPIO.cleanup()
+    assert(line in [DisplayController.LCD_LINE_1, DisplayController.LCD_LINE_2])
+
+
+    text = " " * 16 + text
+
+    self.lcd_byte(line, DisplayController.LCD_CMD)
+    
+    i = self.animation_status[line][0]
+    
+    text_slice = text[i : i + 16]
+
+    self.lcd_string(text_slice)
+
+    i = i + increment
+    if i >= len(text):
+      i = 0
+    
+    self.animation_status[line][0] = i
+    
+
+  # blink
+  def blink(line, text):
+
+    if (line == 1):
+      self.lcd_byte(DisplayController.LCD_LINE_1, DisplayController.LCD_CMD)
+      i = 2
+
+    elif (line == 2):
+      self.lcd_byte(DisplayController.LCD_LINE_2, DisplayController.LCD_CMD)
+      i = 3
+   
+    if (self.counter[i] % 2 > 0):
+      text = " " * 16;
+
+    self.lcd_string(text)
+
+    self.counter[i] = self.counter[i] + 1
+    
+  def tick(self):
+    now = timestamp_ms()
+    if (now - self.waiting_since >= self.wait_time):
+      self.callback(self)
+      self.waiting_since = now
+
+  def lcd_init(self):
+    # Initialise display
+    self.lcd_byte(0x33,DisplayController.LCD_CMD)
+    self.lcd_byte(0x32,DisplayController.LCD_CMD)
+    self.lcd_byte(0x28,DisplayController.LCD_CMD)
+    self.lcd_byte(0x0C,DisplayController.LCD_CMD)
+    self.lcd_byte(0x06,DisplayController.LCD_CMD)
+    self.lcd_byte(0x01,DisplayController.LCD_CMD)
+   
+  def lcd_string(self, message):
+    # Send string to display
+   
+    message = message.ljust(DisplayController.LCD_WIDTH," ")  
+   
+    for i in range(DisplayController.LCD_WIDTH):
+      self.lcd_byte(ord(message[i]),DisplayController.LCD_CHR)
+   
+  def lcd_byte(self, bits, mode):
+    # Send byte to data pins
+    # bits = data
+    # mode = True  for character
+    #        False for command
+   
+    GPIO.output(DisplayController.LCD_RS, mode) # RS
+   
+    # High bits
+    GPIO.output(DisplayController.LCD_D4, False)
+    GPIO.output(DisplayController.LCD_D5, False)
+    GPIO.output(DisplayController.LCD_D6, False)
+    GPIO.output(DisplayController.LCD_D7, False)
+    if bits&0x10==0x10:
+      GPIO.output(DisplayController.LCD_D4, True)
+    if bits&0x20==0x20:
+      GPIO.output(DisplayController.LCD_D5, True)
+    if bits&0x40==0x40:
+      GPIO.output(DisplayController.LCD_D6, True)
+    if bits&0x80==0x80:
+      GPIO.output(DisplayController.LCD_D7, True)
+   
+    # Toggle 'Enable' pin
+    time.sleep(DisplayController.E_DELAY)
+    GPIO.output(DisplayController.LCD_E, True)
+    time.sleep(DisplayController.E_PULSE)
+    GPIO.output(DisplayController.LCD_E, False)
+    time.sleep(DisplayController.E_DELAY)      
+   
+    # Low bits
+    GPIO.output(DisplayController.LCD_D4, False)
+    GPIO.output(DisplayController.LCD_D5, False)
+    GPIO.output(DisplayController.LCD_D6, False)
+    GPIO.output(DisplayController.LCD_D7, False)
+    if bits&0x01==0x01:
+      GPIO.output(DisplayController.LCD_D4, True)
+    if bits&0x02==0x02:
+      GPIO.output(DisplayController.LCD_D5, True)
+    if bits&0x04==0x04:
+      GPIO.output(DisplayController.LCD_D6, True)
+    if bits&0x08==0x08:
+      GPIO.output(DisplayController.LCD_D7, True)
+   
+    # Toggle 'Enable' pin
+    time.sleep(DisplayController.E_DELAY)
+    GPIO.output(DisplayController.LCD_E, True)
+    time.sleep(DisplayController.E_PULSE)
+    GPIO.output(DisplayController.LCD_E, False)
+    time.sleep(DisplayController.E_DELAY)   
+
+  def lcd_cleanup(self):
+    GPIO.cleanup()
