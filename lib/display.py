@@ -72,6 +72,14 @@ class DisplayController(object):
 
     # Initialise display
     self.lcd_init()
+ 
+  def reset(self):
+    self.waiting_since = timestamp_ms()
+
+    self.animation_status = {
+      DisplayController.LCD_LINE_1 : [0, 0],
+      DisplayController.LCD_LINE_2 : [0, 0]
+     }
 
   def set_callback(self, callback):
     self.callback = callback
